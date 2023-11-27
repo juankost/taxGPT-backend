@@ -1,0 +1,7 @@
+/data
+*/data
+**.pyc
+/.vscode
+*/.vscode
+chrome-mac-arm64
+.DS_Store
