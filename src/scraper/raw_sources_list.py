@@ -3,13 +3,16 @@ This script crawls the fu.gov.si website and extracts all the references denoted
 areas of tax laws.
 """
 import os
+from re import S
 from selenium import webdriver
-from bs4 import BeautifulSoup
 import pandas as pd
-import yaml
+import sys
+import wget
 
+sys.path.append("/Users/juankostelec/Google_drive/Projects/tax_backend/src")
+from utils import get_website_html  # noqa: E402
 
-FILE_EXTENSIONS = ["docx", "doc", "pdf", "zip", "xlsx"]
+FILE_EXTENSIONS = ["docx", "doc", "pdf", "zip", "xlsx", "xls", "ppt", "pptx", "csv", "txt", "rtf", "odt", "ods"]
 ROOT_URL = "https://www.fu.gov.si"
 MAIN_URL = ROOT_URL + "/podrocja"
 SRC_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend/src"
@@ -17,241 +20,374 @@ METADATA_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend/data"
 RAW_DATA_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend/data/raw_files"
 PROCESSED_DATA_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend/data/processed_files"
 
-# Open a yaml file with the configurations
-with open(os.path.join(SRC_DIR, "configs.yaml"), "r") as f:
-    config = yaml.load(f, Loader=yaml.FullLoader)
-    print(config)
+
+def is_url_to_file(url):
+    FILE_EXTENSIONS = ["docx", "doc", "pdf", "zip", "xlsx", "xls", "ppt", "pptx", "csv", "txt", "rtf", "odt", "ods"]
+    for file_extension in FILE_EXTENSIONS:
+        if str(url).endswith(file_extension):
+            return True
+    return False
 
 
-def extract_davcna_podrocja_info(metadata_dir):
-    """
-    First we extract all the URL/hrefs from teh website. this includes also hrefs to the same website, but which contain
-    additional information on the financial area.
-
-    Next, we just extract these links that contain the descriptions of the financial area, and we enrich the
-    rest of the links with this additional information.
-
-
-    """
-    driver = webdriver.Chrome()
-    driver.get(MAIN_URL)
-    html = driver.page_source
-    driver.close()
-    soup = BeautifulSoup(html, "html.parser")
-    div_content = soup.find("div", id="content")
-    podrocja_elements = div_content.find_all("div", class_="card dark")
-
-    data_links = []
-    for group_idx, podrocje in enumerate(podrocja_elements):
-        anchors = podrocje.find_all("a")
-        for podrocje_idx, anchor in enumerate(anchors):
-            podrocje_name = anchor.text
-
-            # Get the text inside the <em> element (if it exists)
-            em_text = None
-            em_element = anchor.find("em")
-            if em_element:
-                em_text = em_element.text.strip()
-
-            full_text = anchor.text
-
-            # Subtract the <em> text from the full text to get the remaining text
-            if em_text:
-                remaining_text = full_text.replace(em_text, "").strip()
-            else:
-                remaining_text = full_text.strip()
-
-            podrocje_name = remaining_text
-            podrocje_description = em_text
-            href_value = anchor.get("href")
-            data_links.append([group_idx, podrocje_idx, podrocje_name, podrocje_description, href_value])
-
-    df = pd.DataFrame(
-        data_links, columns=["group_idx", "podrocje_idx", "podrocje_name", "podrocje_description", "href"]
-    )
-
-    # Main table corresponds to the href from the main page, with the description of the "Podrocje"
-    descr_data = (
-        df.query("href == '#'")
-        .rename(columns={"podrocje_name": "group", "podrocje_description": "group_description"})
-        .drop(columns=["href", "podrocje_idx"])
-    )
-
-    # Join back to original table to add the description information to each row
-    df = (
-        pd.merge(df, descr_data, on="group_idx", how="inner")
-        .query("href != '#'")
-        .drop(columns=["podrocje_description"])
-    )
-
-    # Convert HREFs to full URLs, add a flag if the URL links to final source, or a new webpage
-    df["is_final_source"] = df["href"].apply(lambda x: x.startswith("http"))
-    df["url"] = df["href"].apply(lambda x: ROOT_URL + x if not x.startswith("http") else x)
-    df["href_is_file"] = df["url"].apply(
-        lambda x: x.endswith(".pdf")
-        or x.endswith(".docx")
-        or x.endswith(".doc")
-        or x.endswith(".xlsx")
-        or x.endswith(".xls")
-        or x.endswith(".zip")
-    )
-    df["href_type"] = df[["is_final_source", "href_is_file"]].apply(
-        lambda x: "file" if x[0] and x[1] else "website_source" if x[0] else "website_details", axis=1
-    )
-
-    df.to_csv(os.path.join(metadata_dir, "data_links.csv"), index=False)
-    return df
+def make_title_safe(title):
+    # If a string contains whitespace, replace with underscore. Remove also brackets from the name
+    title = str(title).strip().replace(" ", "_")
+    title = title.replace("(", "-").replace(")", "_").replace("/", "_")
+    # If the last character is not alphanumerical, remove it
+    if not title[-1].isalnum():
+        title = title[:-1]
+    return title
 
 
-def extract_source_files_paths(data, metadata_dir):
-    """
-    Now we iterate over all the links in the extracted data. Some of the links point already to a final srouce file,
-    while some point to a different website that contains more links on the same financial topic.
-    We want to scrape also these extra links.
-    """
-
-    website_data = []
-    href_data = []
-    new_websites = data.query("is_final_source == False and href_is_file == False")["url"].values.tolist()
-    for idx, raw_url in enumerate(new_websites):
-        if idx % 10 == 0:
-            print("Started scraping {}/{}: {}".format(idx, len(new_websites), raw_url))
-
-        url = (
-            "/".join(raw_url.split("/")[:-1])
-            if raw_url.split("/")[-1].startswith("#")
-            else "/".join(raw_url.split("/"))
-        )
-        driver = webdriver.Chrome()
-        driver.get(url)
-        html = driver.page_source
-        soup = BeautifulSoup(html, "html.parser")
-        driver.close()
-
-        # Get the text in the <h1> element  --> this gives the title of the page
-        h1_text = None
-        h1_element = soup.find("h1")
-        if h1_element:
-            h1_text = h1_element.text.strip()
-
-        opis_text = None
-        for h2 in soup.find_all("h2"):
-            if h2.find("a") is None:
-                continue
-            a_text = h2.find("a").text.strip()
-
-            # Exclude the text from the <i> elements to get only "Zakonodaja"
-            for i in h2.find_all("i"):
-                a_text = a_text.replace(i.text, "").strip()
-            if "Opis" in a_text:
-                opis_parent_element = h2.parent
-                if opis_parent_element:
-                    opis_p_elements = opis_parent_element.find_all("p")
-                    opis_text = " ".join([x.text.strip() for x in opis_p_elements])
-            elif "Zakonodaja" in a_text:
-                zakonodaja_sister_elements = h2.find_next_siblings()
-                for element in zakonodaja_sister_elements:
-                    a_elements = element.find_all("a", href=True)
-                    for a in a_elements:
-                        # This is an anchor element, so extract the text and the href and save them as separate values
-                        zakonodaja_text = a.text.strip()
-                        zakonodaja_href = a.get("href")
-                        href_data.append([raw_url, zakonodaja_text, zakonodaja_href])
-            elif "Podrobnejši opisi" in a_text:
-                podrobnejsi_opisi_sister_elements = h2.find_next_siblings()
-                for element in podrobnejsi_opisi_sister_elements:
-                    a_elements = element.find_all("a", href=True)
-                    for a in a_elements:
-                        # This is an anchor element, so extract the text and the href and save them as separate values
-                        podrobnejsi_opisi_text = a.text.strip()
-                        podrobnejsi_opisi_href = a.get("href")
-                        href_data.append([raw_url, podrobnejsi_opisi_text, podrobnejsi_opisi_href])
-        website_data.append([raw_url, h1_text, opis_text])
-
-    # Create the two files, and combined them all together with the original data
-    website_data = pd.DataFrame(website_data, columns=["url", "title", "opis"])
-    href_data = pd.DataFrame(href_data, columns=["url", "source_desc", "source_href"])
-
-    # Now I want to integrate the additiona information to the original dataset.
-    # For the rows that were not directly potining to a source, but rather to a new website, we can now add the
-    # links to the actual source files
-
-    # First get the rows of the dataset that directly link to a specific source file
-    # (these we'll just concatenate in the end)
-    sources_data = (
-        data.query("href_type != 'website_details'")
-        .rename(
-            columns={
-                "group": "group_name",
-                "group_description": "group_desc",
-                "podrocje_name": "podrocje_name",
-                "url": "file_url",
-            }
-        )[["group_name", "group_desc", "podrocje_name", "file_url"]]
-        .drop_duplicates()
-    )
-    sources_data["podrocje_url"] = [None] * len(sources_data)
-    sources_data["file_desc"] = [None] * len(sources_data)
-    sources_data["podrocje_opis"] = [None] * len(sources_data)
-    sources_data = sources_data[
-        ["group_name", "group_desc", "podrocje_name", "podrocje_url", "file_desc", "file_url", "podrocje_opis"]
-    ]
-
-    # Second: get the rows form the dataset that point to a website with further links and details
-    links_data = (
-        data.query("href_type == 'website_details'")
-        .rename(
-            columns={
-                "group": "group_name",
-                "group_description": "group_desc",
-                "podrocje_name": "podrocje_name",
-                "url": "podrocje_url",
-            }
-        )[["group_name", "group_desc", "podrocje_name", "podrocje_url"]]
-        .drop_duplicates()
-    )
-
-    # Enrich the links data with the
-    href_data = href_data.rename(
-        columns={"url": "podrocje_url", "source_desc": "file_desc", "source_href": "file_url"}
-    )[["podrocje_url", "file_desc", "file_url"]].drop_duplicates()
-    website_data = website_data.rename(
-        columns={"url": "podrocje_url", "title": "podrocje_title", "opis": "podrocje_opis"}
-    )[["podrocje_url", "podrocje_title", "podrocje_opis"]].drop_duplicates()
-    links_data = pd.merge(links_data, website_data, on="podrocje_url", how="left")
-    links_data = pd.merge(links_data, href_data, on="podrocje_url", how="left")
-    links_data = links_data[
-        ["group_name", "group_desc", "podrocje_name", "podrocje_url", "file_desc", "file_url", "podrocje_opis"]
-    ]
-
-    def get_file_type(href):
-        for file_extension in FILE_EXTENSIONS:
-            if str(href).endswith(file_extension):
-                return file_extension
-        if str(href).startswith("/"):
-            # relative path to a website
-            return "website"
-        elif str(href).startswith("http"):
-            return "website"
+class ReferencesList:
+    def __init__(self, root_url, reference_list_save_dir):
+        self.root_url = root_url
+        self.furs_url = os.path.join(root_url, "podrocja")
+        self.reference_list_save_dir = reference_list_save_dir
+        self.driver = webdriver.Chrome()
+        self.soup = get_website_html(self.furs_url, driver=self.driver, close_driver=False)
+        if os.path.exists(os.path.join(self.reference_list_save_dir, "podrocja_list_with_links.csv")):
+            self.podrocja_list_with_links = pd.read_csv(
+                os.path.join(self.reference_list_save_dir, "podrocja_list_with_links.csv")
+            )
         else:
+            self.podrocja_list_with_links = self.extract_list_podrocja()
+            self.reference_data.extract_podrocja_details()
+        self.driver.close()
+
+    def extract_list_podrocja(self):
+        podrocja_list_with_links = []
+        all_podrocja = self.soup.find("div", id="content")
+        podrocja_elements = all_podrocja.find_all("a", href="#")
+        for element in podrocja_elements:
+            podrocje_description = element.find("em").text
+            podrocje_name = element.text.replace(podrocje_description, "").strip()
+            podrocje_siblings = element.parent.find_next_siblings()
+            for sibling in podrocje_siblings:
+                link_elements = sibling.find_all("li")
+                for li in link_elements:
+                    link_name = li.text
+                    link_href = li.find("a").get("href")
+                    if link_href.startswith("/"):
+                        link_href = ROOT_URL + link_href
+                    podrocja_list_with_links.append([podrocje_name, podrocje_description, link_name, link_href])
+
+        # Create pandas dataframe to store it
+        df = pd.DataFrame(
+            data=podrocja_list_with_links,
+            columns=["podrocje_name", "podrocje_description", "podrocje_link_name", "podrocje_link_href"],
+        )
+        df.to_csv(os.path.join(self.reference_list_save_dir, "podrocja_list_with_links.csv"), index=False)
+        return df
+
+    def extract_podrocja_details(self):
+        website_links = self.get_list_of_further_website_links()
+        typical_website_links, _, other_websites = self.check_href_type(website_links)
+
+        data = None
+        # Extract further stuff from the typical websites
+        for url_link in typical_website_links:
+            df = self.extract_details_typical_website(url_link)
+            if data is None:
+                data = df
+            else:
+                data = pd.concat([data, df], axis=0)
+
+        # Join the details data with the original data
+        self.podrocja_list_with_links["podrocje_clean_link"] = self.podrocja_list_with_links[
+            "podrocje_link_href"
+        ].apply(lambda x: x.split("#")[0])
+
+        self.podrocja_list_with_links = pd.merge(
+            self.podrocja_list_with_links, data, on=["podrocje_clean_link"], how="left"
+        )
+
+        # Save the data
+        self.podrocja_list_with_links.to_csv(
+            os.path.join(self.reference_list_save_dir, "podrocja_list_with_links.csv"), index=False
+        )
+        return self.podrocja_list_with_links
+
+    def extract_details_typical_website(self, url_link):
+        soup = get_website_html(url_link, driver=self.driver, close_driver=False)
+
+        # Find the relevant sections: Opis, Podrobnejši opisi, Zakonodaja, Navodila in Pojasnila
+        content_element = soup.find("div", id="content")
+        if content_element is None:
             return None
 
-    # https://www.fu.gov.si/carina/poslovanje_z_nami/carinski_predpisi/#c1496
-    data = pd.concat([links_data, sources_data], axis=0)
-    data["file_type"] = data["file_url"].apply(lambda x: get_file_type(x))
-    data = data.drop_duplicates()
-    updated_urls = []
-    for url in data["file_url"]:
-        if str(url).startswith("/"):
-            updated_urls.append(os.path.join("https://www.fu.gov.si/", url))
+        website_details = []
+        sections = content_element.find_all("a", href="#")
+        for section in sections:
+            section_title = section.text.strip()
+            if section_title in ["Opis", "Podrobnejši opisi", "Zakonodaja", "Navodila in Pojasnila"]:
+                section_text = ""
+                section_siblings = section.parent.find_next_siblings()
+                for sibling in section_siblings:
+                    section_text = section_text + "\n" + sibling.get_text()
+                    # Clean up text - remove special characters that are not the common one (e.g. (, ), -, etc.)
+                    section_text = section_text.replace(" Bigstock", " ").strip()
+                    section_links = sibling.find_all("a", href=True)
+                    for link in section_links:
+                        link_text = link.text.strip()
+                        link_href = link.get("href")
+                        if link_href.startswith("/"):
+                            link_href = ROOT_URL + link_href
+                        website_details.append([url_link, section_title, section_text, link_text, link_href])
+        df = pd.DataFrame(
+            data=website_details,
+            columns=[
+                "podrocje_clean_link",
+                "details_section",
+                "details_section_text",
+                "details_link_text",
+                "details_link",
+            ],
+        )
+        return df
+
+    def get_list_of_further_website_links(self):
+        website_links = []
+        for _, row in self.podrocja_list_with_links.iterrows():
+            if row["podrocje_link_href"].startswith(self.root_url):
+                website_links.append(row["podrocje_link_href"].split("#")[0])
+
+        website_links = list(set(website_links))
+        return website_links
+
+    def check_href_type(self, website_links):
+        typical_website_links = []
+        file_links = []
+        other_websites = []
+        for url_link in website_links:
+            if not url_link.startswith(self.root_url):
+                other_websites.append(url_link)
+            elif is_url_to_file(url_link):
+                file_links.append(url_link)
+            else:
+                soup = get_website_html(url_link, driver=self.driver, close_driver=False)
+                if self.is_typical_website(soup):
+                    typical_website_links.append(url_link)
+                else:
+                    other_websites.append(url_link)
+        return typical_website_links, file_links, other_websites
+
+    def is_typical_website(self, soup):
+        content_element = soup.find("div", id="content")
+        if content_element is None:
+            return False
+
+        sections = content_element.find_all("a", href="#")
+        for section in sections:
+            section_title = section.text.strip()
+            if section_title in ["Opis", "Podrobnejši opisi", "Zakonodaja", "Navodila in Pojasnila"]:
+                return True
+        return False
+
+
+class Scraper:
+    def __init__(self, root_url, references_list_path, raw_dir):
+        self.root_url = root_url
+        self.raw_dir = raw_dir
+        self.podrocja_list_with_links = pd.read_csv(references_list_path)
+        self.driver = webdriver.Chrome()
+
+    def download_all_references(self):
+        # Download all the references
+        already_downloaded_clean_links = []
+        idx_to_download_info = {}  # maps from idx to the actual download link (esp. if website)
+        dict_idx_to_actual_resource_download_location = {}  # maps from idx to the where we saved the file
+        dict_href_link_to_actual_resource_download_link = {}  # maps from href link to the actual download link
+
+        # What I want to have is a mapping: idx: (actual_download_link, downloaded_location)
+        # Pass the mapping to the download_file, and download_website functions, and update it if we download something
+        # Additionally, check in the two function, whether there is a ned to download the file or was it already done
+        c = 0
+        for idx, row in self.podrocja_list_with_links.iterrows():
+            c += 1
+            if c % 30 == 0:
+                break
+            clean_podrocje_link_href = str(row["podrocje_link_href"]).split("#")[0]
+            clean_details_link = str(row["details_link"]).split("#")[0]
+
+            if is_url_to_file(clean_podrocje_link_href):
+                if clean_podrocje_link_href not in already_downloaded_clean_links:
+                    self.download_file(
+                        clean_podrocje_link_href,
+                        row["podrocje_link_name"],
+                        idx,
+                        already_downloaded_clean_links,
+                        idx_to_download_info,
+                    )
+            elif is_url_to_file(clean_details_link):
+                self.download_file(
+                    clean_details_link,
+                    row["details_link_text"],
+                    idx,
+                    already_downloaded_clean_links,
+                    idx_to_download_info,
+                )
+            elif clean_details_link != "nan":
+                self.download_website(
+                    clean_details_link,
+                    row["details_link_text"],
+                    idx,
+                    already_downloaded_clean_links,
+                    idx_to_download_info,
+                )
+            else:
+                self.download_website(
+                    clean_podrocje_link_href,
+                    row["podrocje_link_name"],
+                    idx,
+                    already_downloaded_clean_links,
+                    idx_to_download_info,
+                )
+        # Now update the self.podrocja_list_with_links with the download links for websites and the download locations
+        print(
+            len(self.podrocja_list_with_links),
+            len(idx_to_download_info),
+            len(idx_to_download_info.keys()),
+            len(set(idx_to_download_info.keys())),
+        )
+        # temp_df = pd.DataFrame(
+        #     data=list(idx_to_download_info.values()),
+        #     columns=["url_link", "actual_download_link", "actual_download_location"],
+        #     index=idx_to_download_info.keys(),
+        # )
+
+        self.podrocja_list_with_links[
+            ["used_download_link", "actual_download_link", "actual_download_location"]
+        ] = self.podrocja_list_with_links.index.map(idx_to_download_info)
+        # self.podrocja_list_with_links[["actual_download_link", "actual_download_location"]] = pd.DataFrame(
+        #     idx_to_download_info.values(), index=idx_to_download_info.keys()
+        # )
+
+        # self.podrocja_list_with_links.to_csv(
+        #     os.path.join(METADATA_DIR, "enriched_podrocja_list_with_links.csv"), index=False
+        # )
+
+    def download_file(self, url_link, title, idx, already_downloaded_clean_links, idx_to_download_info):
+        # The file extension will be gven by the last part of url_link.
+        # It will either be delineated by a dot or a equal sign
+        if url_link in already_downloaded_clean_links:
+            actual_download_link_and_paths = [item[1] for item in idx_to_download_info.items() if item[0] == idx]
+            assert set(actual_download_link_and_paths) == 1
+            idx_to_download_info[idx] = (url_link, *actual_download_link_and_paths[0])
+            return
+
+        file_extension = url_link.split(".")[-1]
+        if "=" in file_extension:
+            file_extension = file_extension.split("=")[-1]
+        if file_extension not in FILE_EXTENSIONS:
+            print("Could not download the file", url_link)
+            return None
+
+        # Download the file
+        saved_path = os.path.join(self.raw_dir, make_title_safe(title) + "." + file_extension)
+        if not os.path.exists(saved_path):
+            print(f"Downloading file from {url_link}")
+            try:
+                wget.download(url_link, saved_path)
+            except Exception as e:
+                print(f"Could not download the file {url_link}. Error: ", e)
+        # Now update the idx_to_download_info
+        idx_to_download_info[idx] = (url_link, url_link, saved_path)
+        return
+
+    def download_website(self, url_link, title, idx, already_downloaded_clean_links, idx_to_download_info):
+        # First figure out if it is any of the standard domains:
+        if url_link in already_downloaded_clean_links:
+            actual_download_link_and_paths = [item[1] for item in idx_to_download_info.items() if item[0] == idx]
+            assert set(actual_download_link_and_paths) == 1
+            idx_to_download_info[idx] = (url_link, *actual_download_link_and_paths[0])
+            return
+
+        download_url_link = None
+        saved_path = None
+        if "eur-lex.europa.eu" in url_link:
+            print("Need to download from eur-lex.europa.eu")
+        elif ".uradni-list.si" in url_link:
+            print("Need to download from uradni-list.si")
+        elif ".pisrs.si" in url_link:
+            print("Need to download from pisrs.si")
+            download_url_link, saved_path = ScrapePISRS.download_custom_website(url_link, title, driver=self.driver)
+        elif "fu.gov.si" in url_link:
+            print("Need to download from fu.gov.si")
         else:
-            updated_urls.append(url)
-    data["file_url"] = updated_urls
-    data.to_csv(os.path.join(metadata_dir, "furs_data.csv"), index=False)
-    return data
+            print("Need to download from other website: ", url_link)
+
+        # Now update the idx_to_download_info
+        idx_to_download_info[idx] = (url_link, download_url_link, saved_path)
+        return
 
 
-def get_raw_sources_list(metadata_dir):
-    data = extract_davcna_podrocja_info(metadata_dir)
-    raw_sources_list = extract_source_files_paths(data, metadata_dir)
-    return raw_sources_list
+class ScrapePISRS(Scraper):
+    @staticmethod
+    def download_custom_website(url_link, title, driver=None):
+        soup = get_website_html(url_link, driver=driver, close_driver=False)
+        pdf_resource_title = ScrapePISRS.get_resource_title(soup)
+
+        pdf_source_url = ScrapePISRS.get_pdf_source_url(url_link, soup)
+        if pdf_source_url:
+            raw_data_save_path = os.path.join(RAW_DATA_DIR, f"{make_title_safe(pdf_resource_title)}.pdf")
+            if not os.path.exists(raw_data_save_path):
+                print(f"Downloading PISRS file: {make_title_safe(pdf_resource_title)} from website {pdf_source_url}")
+                try:
+                    wget.download(pdf_source_url, raw_data_save_path)
+                except Exception as e:
+                    print(f"Could not download the file {url_link}. Error: ", e)
+
+            return pdf_source_url, raw_data_save_path
+        else:
+            print(f"Could not find PISRS file: {make_title_safe(pdf_resource_title)} from website {url_link}")
+            return None, None
+
+    @classmethod
+    def get_pdf_source_url(cls, file_url, soup):
+        # By checking the html of the website, we can see that the pdf file is in the <div id="fileBtns"> element
+        # for the data from PiSRS website
+        if soup is None:
+            return None
+        div_element = soup.find("div", id="fileBtns")
+        if div_element:
+            a_elements = div_element.find_all("a", href=True)
+            for a in a_elements:
+                href_value = a.get("href")
+                complete_url_path = os.path.join(file_url.rsplit("/", maxsplit=1)[0], href_value)
+                if href_value.endswith("pdf"):
+                    return complete_url_path
+        print("Could not find the pdf file in the <div id='fileBtns'> element")
+        return None
+
+    @classmethod
+    def get_resource_title(cls, soup):
+        # In the PiSRS website the title is given by the <h1> element
+        if soup is None:
+            return None
+        h1_element = soup.find("h1")
+        if h1_element:
+            return "".join(
+                char
+                for char in h1_element.text
+                if char.isalnum() or char.isspace() or char == ")" or char == "(" or char == "-"
+            ).strip()
+        else:
+            print("Could not find the title of the law (i.e the <h1> element)")
+            return None
+
+
+class ScrapeEURLex(Scraper):
+    @staticmethod
+    def download_custom_website(url_link, title, driver=None):
+        # soup = get_website_html(url_link, driver=driver, close_driver=False)
+        # print(soup)
+        return
+
+
+if __name__ == "__main__":
+    reference_data = ReferencesList(ROOT_URL, METADATA_DIR)
+
+    # Download all the data
+    scraper = Scraper(ROOT_URL, os.path.join(METADATA_DIR, "podrocja_list_with_links.csv"), RAW_DATA_DIR)
+    scraper.download_all_references()

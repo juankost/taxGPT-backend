@@ -3,6 +3,7 @@ from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from dotenv import load_dotenv, find_dotenv
 import tiktoken
+import os
 
 _ = load_dotenv(find_dotenv())  # read local .env file
 
@@ -46,11 +47,30 @@ def add_text_to_vector_store(path, law, embeddings=None, db=None):
 
     # Split it into chunks
     chunks = split_long_text(text)
-    metadatas = [[law, i] for i in range(len(chunks))]
+    metadatas = [{"law": law, "idx": i} for i in range(len(chunks))]
 
     if db is None:
         db = FAISS.from_texts(chunks, embeddings, metadatas=metadatas)
     else:
+        # TODO: Only add if the law is not already in the store
+        # existing_laws = [metadata["law"] for metadata in db.get_all_metadatas()]
+        # if law in existing_laws:
+        #     return db
+        # else:
         db.add_texts(chunks, metadatas=metadatas)
 
+    return db
+
+
+def update_or_create_vector_store(db_path, processed_data_dir, embeddings=None):
+    if embeddings is None:
+        embeddings = OpenAIEmbeddings()
+    db = None
+    if os.path.exists(db_path):
+        db = FAISS.load_local(db_path, embeddings)
+    for file_name in os.listdir(processed_data_dir):
+        law_title = file_name.rsplit(".", maxsplit=1)[0]
+        db = add_text_to_vector_store(
+            os.path.join(processed_data_dir, file_name), law_title, embeddings=embeddings, db=db
+        )
     return db
