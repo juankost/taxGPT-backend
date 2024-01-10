@@ -74,3 +74,9 @@ def update_or_create_vector_store(db_path, processed_data_dir, embeddings=None):
             os.path.join(processed_data_dir, file_name), law_title, embeddings=embeddings, db=db
         )
     return db
+
+
+
+
+if __name__ == "__main__":
+    

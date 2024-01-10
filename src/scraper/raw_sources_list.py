@@ -306,14 +306,17 @@ class Scraper:
         download_url_link = None
         saved_path = None
         if "eur-lex.europa.eu" in url_link:
+            # TODO: Implemen scraper for EUR-Lex
             print("Need to download from eur-lex.europa.eu")
         elif ".uradni-list.si" in url_link:
+            # TODO Implement scraper for uradni-list.si
             print("Need to download from uradni-list.si")
         elif ".pisrs.si" in url_link:
             print("Need to download from pisrs.si")
             download_url_link, saved_path = ScrapePISRS.download_custom_website(url_link, title, driver=self.driver)
         elif "fu.gov.si" in url_link:
             print("Need to download from fu.gov.si")
+            # TODO Implement scraper for fu.gov.si
         else:
             print("Need to download from other website: ", url_link)
 
@@ -385,6 +388,7 @@ class ScrapeEURLex(Scraper):
         return
 
 
+# TODO: Handle too long filename error
 if __name__ == "__main__":
     reference_data = ReferencesList(ROOT_URL, METADATA_DIR)
 

@@ -3,6 +3,10 @@ import os
 import wget
 from selenium import webdriver
 from bs4 import BeautifulSoup
+import sys
+
+sys.path.append("/Users/juankostelec/Google_drive/Projects/tax_backend/src")
+
 from parser.text_parser import parse_pdf
 from database.vector_store import add_text_to_vector_store as add_text_to_vector_store
 from selenium.webdriver.support.ui import WebDriverWait
@@ -69,7 +73,6 @@ def get_pisrs_data(data: pd.DataFrame, db=None, embeddings=None):
     for i, (_, row) in enumerate(data[["file_url"]].iterrows()):
         if i % 10 == 9:
             print(f"Processing file {i}/{total_rows}")
-            break
         soup = get_website_html(row["file_url"])
         pdf_resource_title = get_resource_title(soup)
         pdf_source_url = get_pdf_source_url(row["file_url"], soup)
