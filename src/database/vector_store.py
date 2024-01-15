@@ -68,7 +68,9 @@ def update_or_create_vector_store(db_path, processed_data_dir, embeddings=None):
     db = None
     if os.path.exists(db_path):
         db = FAISS.load_local(db_path, embeddings)
-    for file_name in os.listdir(processed_data_dir):
+    for i, file_name in enumerate(os.listdir(processed_data_dir)):
+        if i % 10 == 9:
+            print(f"Processing file {i+1} of {len(os.listdir(processed_data_dir))}")
         law_title = file_name.rsplit(".", maxsplit=1)[0]
         db = add_text_to_vector_store(
             os.path.join(processed_data_dir, file_name), law_title, embeddings=embeddings, db=db
@@ -76,7 +78,9 @@ def update_or_create_vector_store(db_path, processed_data_dir, embeddings=None):
     return db
 
 
-
-
 if __name__ == "__main__":
-    
+    # TODO: Only add new laws to the vector store
+    ROOT_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend"
+    processed_data_dir = os.path.join(ROOT_DIR, "data/processed_files")
+    db_path = os.path.join(ROOT_DIR, "data/vector_store/faiss_index_all_laws")
+    update_or_create_vector_store(db_path, processed_data_dir)
