@@ -1,4 +1,3 @@
-import langchain
 import os
 from langchain.vectorstores import FAISS
 from dotenv import load_dotenv, find_dotenv
