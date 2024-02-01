@@ -24,7 +24,7 @@ def get_context(query, db, k=10, max_context_len=4096):
 
 if __name__ == "__main__":
     ROOT_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend"
-    query = "Koliko je minimalna placa v Sloveniji?"
+    query = " "
     db = FAISS.load_local(os.path.join(ROOT_DIR, "data/vector_store/faiss_index_all_laws"), OpenAIEmbeddings())
     # db = FAISS.load_local(os.path.join(ROOT_DIR, "data/vector_store/faiss_index_all_laws"), "gpt-4")
     context = get_context(query, db)

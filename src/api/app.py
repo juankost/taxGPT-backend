@@ -3,16 +3,17 @@ import openai
 
 # import asyncio
 from pydantic import BaseModel
-from typing import Generator, AsyncGenerator
+
+# from typing import Generator, AsyncGenerator
 from fastapi import FastAPI
 
-from fastapi.responses import StreamingResponse
+# from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from langchain.vectorstores import FAISS
 from langchain.embeddings.openai import OpenAIEmbeddings  # noqa E402
 
 from src.rag.retrieval import get_context
-
+from src.database.data_store import add_chat_history, get_chat_history, append_to_chat_history
 
 ROOT_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend"
 
@@ -24,14 +25,15 @@ app = FastAPI()
 
 class UserQuery(BaseModel):
     query: str
-    session_id: int
+    user_id: str
+    chat_id: str
+    session_id: str
 
 
 # Placeholder for the database containing the conversation histories
 # This will be replaced with a database connection
 # For now, we will use a dictionary
-conversation_histories = {}
-
+# conversation_histories = {}
 
 # Vector database for retrieving context
 vector_db = FAISS.load_local(os.path.join(ROOT_DIR, "data/vector_store/faiss_index_all_laws"), OpenAIEmbeddings())
@@ -44,35 +46,37 @@ async def root():
 
 @app.post("/chat")
 async def chat(user_query: UserQuery):
-    session_id = user_query.session_id
+    # session_id = user_query.session_id
+    chat_id = user_query.chat_id
+    user_id = user_query.user_id
     user_message = user_query.query
 
     # Retrieve or initialize the conversation history for the given session_id
-    conversation = conversation_histories.get(session_id, [])
-    enriched_conversation = conversation.copy()
+    past_conversation = get_chat_history(user_id, chat_id)
+    print(past_conversation)
 
-    # Retrieve the context relevant for the latest message
+    # Retrieve the context relevant for the latest message and create the new message
     context = get_context(user_message, vector_db, k=10, max_context_len=4096)
-
-    # Create new message for the API:
     enriched_user_message = add_context_to_message(user_message, context)
-
-    # Add the new user message to the conversation history
-    enriched_conversation.append({"role": "user", "content": enriched_user_message})  # to pass to LLM
-    conversation.copy().append({"role": "user", "content": user_message})  # for logging
+    past_conversation.append({"role": "user", "content": enriched_user_message})  # to pass to LLM
 
     # Send the entire conversation history to OpenAI API
     response = openai.ChatCompletion.create(
-        model="gpt-4-0125-preview", messages=enriched_conversation, temperature=0, stream=False
+        model="gpt-4-0125-preview", messages=past_conversation, temperature=0, stream=False
     )
+    assistant_message = response.choices[0].message["content"]
 
-    # Add the OpenAI response to the conversation history
-    conversation.append({"role": "assistant", "content": response.choices[0].message["content"]})
+    print(type(user_message), type(assistant_message))
 
     # Save the updated conversation history
-    conversation_histories[session_id] = conversation
+    conversation = [
+        {"role": "user", "content": user_message},
+        {"role": "assistant", "content": assistant_message},
+    ]
+    print("Message to be added to database: ", conversation)
+    append_to_chat_history(user_id, chat_id, conversation)
 
-    return {"response": response.choices[0].message["content"]}
+    return {"response": assistant_message}
 
 
 def add_context_to_message(message, context):
@@ -88,7 +92,6 @@ def add_context_to_message(message, context):
 
 
 # NEXT STEPS:
-# Test chat history
 # Connect databae to keep track of the chat histories
 # Test with the database connection
 # How can I deploy the API to production? Vercel???
