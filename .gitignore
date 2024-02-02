@@ -5,3 +5,9 @@
 */.vscode
 chrome-mac-arm64
 .DS_Store
+taxGPT.egg-info/dependency_links.txt
+taxGPT.egg-info/PKG-INFO
+taxGPT.egg-info/SOURCES.txt
+taxGPT.egg-info/top_level.txt
+firebase_key.json
+.env
