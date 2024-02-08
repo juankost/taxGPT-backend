@@ -80,7 +80,7 @@ def update_or_create_vector_store(db_path, processed_data_dir, embeddings=None):
 
 if __name__ == "__main__":
     # TODO: Only add new laws to the vector store
-    ROOT_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend"
+    ROOT_DIR = "/Users/juankostelec/Google_drive/Projects/taxGPT-backend"
     processed_data_dir = os.path.join(ROOT_DIR, "data/processed_files")
     db_path = os.path.join(ROOT_DIR, "data/vector_store/faiss_index_all_laws")
     update_or_create_vector_store(db_path, processed_data_dir)

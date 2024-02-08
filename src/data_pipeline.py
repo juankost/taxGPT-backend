@@ -7,11 +7,11 @@ import os
 FILE_EXTENSIONS = ["docx", "doc", "pdf", "zip", "xlsx"]
 ROOT_URL = "https://www.fu.gov.si"
 MAIN_URL = ROOT_URL + "/podrocja"
-SRC_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend/src"
-METADATA_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend/data"
-RAW_DATA_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend/data/raw_files"
-PROCESSED_DATA_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend/data/processed_files"
-VECTOR_DB_DIR = "/Users/juankostelec/Google_drive/Projects/tax_backend/data/vector_store"
+SRC_DIR = "/Users/juankostelec/Google_drive/Projects/taxGPT-backend/src"
+METADATA_DIR = "/Users/juankostelec/Google_drive/Projects/taxGPT-backend/data"
+RAW_DATA_DIR = "/Users/juankostelec/Google_drive/Projects/taxGPT-backend/data/raw_files"
+PROCESSED_DATA_DIR = "/Users/juankostelec/Google_drive/Projects/taxGPT-backend/data/processed_files"
+VECTOR_DB_DIR = "/Users/juankostelec/Google_drive/Projects/taxGPT-backend/data/vector_store"
 
 
 def get_raw_sources_list(metadata_dir):
