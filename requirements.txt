@@ -1,0 +1,17 @@
+openai
+httpx
+asyncio
+pydantic
+fastapi
+typing
+python-dotenv
+langchain_community
+langchain_openai
+uvicorn
+langchain
+tiktoken
+firebase_admin
+datetime
+numpy
+selenium
+bs4

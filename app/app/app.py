@@ -1,24 +1,15 @@
 import os
 import openai
-import httpx
-import json
-
-import asyncio
 from pydantic import BaseModel
-
-# from typing import Generator, AsyncGenerator
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, Response
-from openai import OpenAI, AsyncOpenAI
-
+from fastapi.responses import StreamingResponse
+from openai import OpenAI
 from typing import List, Optional
-
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
 from langchain_openai import OpenAIEmbeddings
-from src.rag.retrieval import get_context
-from src.database.data_store import add_chat_history, get_chat_history, append_to_chat_history
+from app.rag.retrieval import get_context
 
 
 ROOT_DIR = "/Users/juankostelec/Google_drive/Projects/taxGPT-backend"
@@ -26,8 +17,6 @@ ROOT_DIR = "/Users/juankostelec/Google_drive/Projects/taxGPT-backend"
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client = OpenAI()
-
-
 app = FastAPI()
 
 # TODO: This needs to be adapted for Production (i.e. only allow the frontend to access the API)

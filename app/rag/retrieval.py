@@ -27,6 +27,19 @@ def get_context(query, db, k=10, max_context_len=4096):
 if __name__ == "__main__":
     ROOT_DIR = "/Users/juankostelec/Google_drive/Projects/taxGPT-backend"
     query = " kdo je davcni rezident Slovenije?"
-    db = FAISS.load_local(os.path.join(ROOT_DIR, "data/vector_store/faiss_index_all_laws"), OpenAIEmbeddings())
-    context = get_context(query, db)
-    print(context)
+
+    # db = FAISS.load_local(os.path.join(ROOT_DIR, "data/vector_store/faiss_index_all_laws"), OpenAIEmbeddings())
+    # context = get_context(query, db)
+    # print(context)
+
+    # Use timeit to time how long the database takes to load
+    import timeit
+
+    print(
+        timeit.timeit(
+            "FAISS.load_local(os.path.join(ROOT_DIR, 'data/vector_store/faiss_index_all_laws'), OpenAIEmbeddings())",
+            setup="from langchain_community.vectorstores import FAISS; from langchain_openai import OpenAIEmbeddings",
+            number=1,
+            globals=globals(),
+        )
+    )
