@@ -12,3 +12,4 @@ firebase_admin
 numpy
 selenium
 beautifulsoup4
+google-cloud-compute
