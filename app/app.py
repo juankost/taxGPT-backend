@@ -9,6 +9,7 @@ from app.api.openai_interface import get_openai_stream
 
 # Load environment variables from .env file
 load_dotenv(find_dotenv())
+print(os.getenv("DATABASE_IP_ADDRESS"))
 
 # TODO: This needs to be adapted for Production (i.e. only allow the frontend to access the API)
 app = FastAPI()
