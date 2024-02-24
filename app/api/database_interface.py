@@ -13,7 +13,7 @@ def fetch_database_ip():
     instance = client.get(project=project, zone=zone, instance=instance_name)
     print(instance.network_interfaces[0].access_configs)
     logging.info(instance.network_interfaces[0].access_configs)
-    return instance.network_interfaces[0].access_configs[0].natIP
+    return instance.network_interfaces[0].access_configs[0].external_ip
 
 
 def get_topk_context_chunks(query, k=10, max_context_length=4096):
