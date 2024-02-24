@@ -20,7 +20,7 @@ def get_topk_context_chunks(query, k=10, max_context_length=4096):
 
     print("DATABASE_IP_ADDRESS", os.getenv("DATABASE_IP_ADDRESS"))
     print(fetch_database_ip())
-    db_api_endpoint = "http://" + os.getenv("DATABASE_IP_ADDRESS") + "/get_context"
+    db_api_endpoint = "http://" + os.getenv("DATABASE_IP_ADDRESS") + ":" + os.getenv("DATABASE_PORT") + "/get_context"
     logging.info(f"Sending request to {db_api_endpoint}")
     print("Sending request to", db_api_endpoint)
     response = requests.post(db_api_endpoint, json={"query": query, "k": k, "max_context_length": max_context_length})
