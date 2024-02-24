@@ -11,15 +11,14 @@ def fetch_database_ip():
 
     client = compute_v1.InstancesClient()
     instance = client.get(project=project, zone=zone, instance=instance_name)
-    return instance.network_interfaces[0].access_configs[0].nat_i_p
+    return instance.network_interfaces[0].access_configs[0].network_i_p
 
 
 def get_topk_context_chunks(query, k=10, max_context_length=4096):
     # if os.getenv("DATABASE_IP_ADDRESS") is None:
     os.environ["DATABASE_IP_ADDRESS"] = fetch_database_ip()
 
-    print("DATABASE_IP_ADDRESS", os.getenv("DATABASE_IP_ADDRESS"))
-    print(fetch_database_ip())
+    # TODO There must be a better way to do this
     db_api_endpoint = "http://" + os.getenv("DATABASE_IP_ADDRESS") + ":" + os.getenv("DATABASE_PORT") + "/get_context"
     logging.info(f"Sending request to {db_api_endpoint}")
     print("Sending request to", db_api_endpoint)
