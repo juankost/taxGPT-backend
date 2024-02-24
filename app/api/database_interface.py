@@ -15,9 +15,11 @@ def fetch_database_ip():
 
 
 def get_topk_context_chunks(query, k=10, max_context_length=4096):
-    if os.getenv("DATABASE_IP_ADDRESS") is None:
-        os.environ["DATABASE_IP_ADDRESS"] = fetch_database_ip()
+    # if os.getenv("DATABASE_IP_ADDRESS") is None:
+    os.environ["DATABASE_IP_ADDRESS"] = fetch_database_ip()
 
+    print("DATABASE_IP_ADDRESS", os.getenv("DATABASE_IP_ADDRESS"))
+    print(fetch_database_ip())
     db_api_endpoint = "http://" + os.getenv("DATABASE_IP_ADDRESS") + "/get_context"
     logging.info(f"Sending request to {db_api_endpoint}")
     print("Sending request to", db_api_endpoint)
