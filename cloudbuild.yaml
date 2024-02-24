@@ -15,7 +15,7 @@ steps:
     '--region', 'us-central1', 
     '--platform', 'managed',
     '--update-secrets=OPENAI_API_KEY=openai-api-key:latest',
-    '--set-env-vars=DATABASE_INSTANCE_NAME=taxgpt-database,PROJECT_ID=$PROJECT_ID,DATABASE_INSTANCE_ZONE=us-central1-f,DATABASE_PORT=8080',
+    '--set-env-vars=DATABASE_INSTANCE_NAME=taxgpt-database,PROJECT_ID=$PROJECT_ID,DATABASE_INSTANCE_ZONE=us-central1-f,DATABASE_PORT=8080,GPT_MODEL=gpt-4',
     '--memory', '1Gi', 
     '--cpu', '2', 
     '--concurrency', '80', 

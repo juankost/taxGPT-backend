@@ -12,6 +12,7 @@ from app.api.openai_interface import get_openai_stream
 load_dotenv(find_dotenv())
 print(os.getenv("DATABASE_IP_ADDRESS"))
 
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
