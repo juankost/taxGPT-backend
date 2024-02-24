@@ -21,13 +21,14 @@ def get_topk_context_chunks(query, k=10, max_context_length=4096):
     # TODO There must be a better way to do this
 
     db_api_endpoint = "http://" + os.getenv("DATABASE_IP_ADDRESS") + ":" + os.getenv("DATABASE_PORT") + "/get_context"
-    response = requests.post(db_api_endpoint, json={"query": query, "k": k, "max_context_length": max_context_length})
     logging.info(f"Sending request to {db_api_endpoint}")
+    response = requests.post(db_api_endpoint, json={"query": query, "k": k, "max_context_length": max_context_length})
     if response.status_code == 200:
         logging.info(f"Received response from {db_api_endpoint}")
-        context = response.json().get("message")
+        context = response.json().get("context")
         logging.info("Response: " + context)
         return context
     else:
         # Return error message
+        logging.info("Error in response: ")
         return "Error in retrieving context from the database"
