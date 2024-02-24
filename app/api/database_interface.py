@@ -1,6 +1,7 @@
 import requests
 import os
 from google.cloud import compute_v1
+import logging
 
 
 def fetch_database_ip():
@@ -18,6 +19,8 @@ def get_topk_context_chunks(query, k=10, max_context_length=4096):
         os.environ["DATABASE_IP_ADDRESS"] = fetch_database_ip()
 
     db_api_endpoint = "http://" + os.getenv("DATABASE_IP_ADDRESS") + "/get_context"
+    logging.info(f"Sending request to {db_api_endpoint}")
+    print("Sending request to", db_api_endpoint)
     response = requests.post(db_api_endpoint, json={"query": query, "k": k, "max_context_length": max_context_length})
     if response.status_code == 200:
         context = response.json().get("context")
