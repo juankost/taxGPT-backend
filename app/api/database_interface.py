@@ -29,6 +29,7 @@ def get_topk_context_chunks(query, k=10, max_context_length=4096):
     if response.status_code == 200:
         logging.info(f"Received response from {db_api_endpoint}")
         context = response.json().get("message")
+        logging.info("Response: " + context)
         return context
     else:
         # Return error message
