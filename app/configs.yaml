@@ -1,6 +1,0 @@
-FILE_EXTENSIONS: [docx", "doc", "pdf", "zip", "xlsx"]
-FURS_ROOT_URL: "https://www.fu.gov.si"
-FURS_MAIN_URL: "https://www.fu.gov.si/podrocja/"
-METADATA_DIR: "/Users/juankostelec/Google_drive/Projects/taxGPT-backend/data"
-RAW_DATA_DIR: "/Users/juankostelec/Google_drive/Projects/taxGPT-backend/data/raw_files"
-PROCESSED_DATA_DIR: "/Users/juankostelec/Google_drive/Projects/taxGPT-backend/data/processed_files"

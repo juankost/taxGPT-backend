@@ -1,8 +1,13 @@
 # Create a docker file for this project
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.11
 
-COPY ./requirements.txt /app/requirements.txt
+# Copy the repository and install the python package and dependencies
+COPY . /workspace/src
+WORKDIR /workspace/src
 
-RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+# Install Python pip and then install the package
+RUN python3 -m pip install --no-cache-dir -e . 
 
-COPY ./app /app
+# Option 3
+RUN chmod +x /workspace/src/startup.sh
+CMD ["/bin/bash", "/workspace/src/startup.sh"]
