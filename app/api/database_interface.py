@@ -11,6 +11,8 @@ def fetch_database_ip():
 
     client = compute_v1.InstancesClient()
     instance = client.get(project=project, zone=zone, instance=instance_name)
+    print(instance.network_interfaces[0].access_configs)
+    logging.info(instance.network_interfaces[0].access_configs)
     return instance.network_interfaces[0].access_configs[0].natIP
 
 
