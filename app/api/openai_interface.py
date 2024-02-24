@@ -1,4 +1,6 @@
 import os
+
+# import logging
 from typing import List
 from pydantic import BaseModel
 from openai import OpenAI

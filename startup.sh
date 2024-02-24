@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# Load environment variables
-set -a  # Automatically export all variables
-source /workspace/taxgpt_backend_env/.env
-set +a
-
 # Fetch the PORT environment variable or default to 8000
 PORT=${PORT:-8000}
 
