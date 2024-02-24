@@ -20,9 +20,7 @@ steps:
     gcloud run deploy taxgpt-backend --image=gcr.io/$PROJECT_ID/taxgpt-backend-image:$SHORT_SHA \
       --region=us-central1 --platform=managed \
       --update-secrets=OPENAI_API_KEY=openai-api-key:latest \
-      --set-env-vars=DATABASE_IP_ADDRESS=$IP \
       --memory=1Gi --cpu=2 --concurrency=80 --timeout=30 \
       --min-instances=1 --max-instances=10
   id: Deploying Cloud Run service
-  waitFor: ['Fetch the IP address of the database']
 timeout: '1600s'
