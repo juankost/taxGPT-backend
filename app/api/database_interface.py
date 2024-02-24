@@ -11,9 +11,7 @@ def fetch_database_ip():
 
     client = compute_v1.InstancesClient()
     instance = client.get(project=project, zone=zone, instance=instance_name)
-    print(instance.network_interfaces[0].access_configs)
-    logging.info(instance.network_interfaces[0].access_configs)
-    return instance.network_interfaces[0].access_configs[0].external_ip
+    return instance.network_interfaces[0].access_configs[0].nat_i_p
 
 
 def get_topk_context_chunks(query, k=10, max_context_length=4096):
