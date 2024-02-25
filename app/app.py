@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from dotenv import find_dotenv, load_dotenv
-from app.api.openai_interface import get_openai_stream
+from app.api.openai_interface import get_openai_stream, Config, Message, OpenAI
 from app.utils import fetch_database_ip
 
 # Configure logging
@@ -33,11 +33,6 @@ class UserQuery(BaseModel):
     session_id: str
 
 
-class Message(BaseModel):
-    content: str
-    role: str
-
-
 class ChatRequest(BaseModel):
     messages: List[Message]
     previewToken: Optional[str] = None
@@ -52,7 +47,7 @@ async def root():
 @app.post("/api/chat_with_context")
 async def stream(user_query: ChatRequest):
     logger.info("Chat with context endpoint called")
-    return StreamingResponse(get_openai_stream(user_query.messages), media_type="text/event-stream")
+    return StreamingResponse(get_openai_stream(user_query.messages, config), media_type="text/event-stream")
 
 
 if __name__ == "__main__":
@@ -71,6 +66,14 @@ if __name__ == "__main__":
             f.write(environment_variables)
         load_dotenv(find_dotenv(), override=True)
         fetch_database_ip(internal=True)
+
+    # Initialize the config for the OpenAI interface
+    config = Config(
+        k=int(os.environ.get("NUM_CONTEXT_CHUNKS")),
+        max_context_length=int(os.environ.get("MAX_CONTEXT_LENGTH")),
+        model=os.environ.get("GPT_MODEL"),
+        client=OpenAI(api_key=os.environ.get("OPENAI_API_KEY")),
+    )
 
     # Start the Server
     port = int(os.environ.get("PORT", 8080))  # Default to 8080 for local development, use PORT env var in Cloud Run

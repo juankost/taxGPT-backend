@@ -15,6 +15,9 @@ class Config(BaseModel):
     model: str
     client: OpenAI
 
+    class Config:
+        arbitrary_types_allowed = True
+
 
 def get_openai_stream(messages: List[Message], config: Config):
     # Extract the configuration parameters
@@ -46,8 +49,8 @@ def add_context_to_messages(messages, context):
         f"Question to answer: {latest_message}\n"
         f"{context}\n"
         f"To repeat, based on the information above, answer the question, and provide the sources used: {latest_message}\n"  # noqa: E501
-        f"Answer: ",
-        "Sources used: ",
+        f"Answer: "
+        "Sources used: "
     )
-    enriched_messages = messages[:-1] + [{"content": enriched_user_message, "role": "user"}]
+    enriched_messages = messages[:-1] + [Message(content=enriched_user_message, role="user")]
     return enriched_messages
