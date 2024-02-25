@@ -1,5 +1,7 @@
 import os
 import logging
+import argparse
+import uvicorn
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,17 +9,13 @@ from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from dotenv import find_dotenv, load_dotenv
 from app.api.openai_interface import get_openai_stream
-
-# Load environment variables from .env file
-load_dotenv(find_dotenv())
-print(os.getenv("DATABASE_IP_ADDRESS"))
-
+from app.utils import fetch_database_ip
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# TODO: This needs to be adapted for Production (i.e. only allow the frontend to access the API)
+# TODO: Only allow access from frontend domain, or from local development (how to do this)
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -58,8 +56,23 @@ async def stream(user_query: ChatRequest):
 
 
 if __name__ == "__main__":
-    import uvicorn
+    args = argparse.ArgumentParser()
+    args.add_argument("--local", action="store_true", help="Run the server locally")
+    args = args.parse_args()
 
+    # Load environment variables
+    if args.local:
+        load_dotenv(".env.local", override=True)
+        fetch_database_ip(internal=False)
+    else:
+        # All the environment variables are passed through one secret value --> Need to extract them
+        environment_variables = os.environ.get("ENVIRONMENT_VARIABLES")
+        with open(".env", "w") as f:
+            f.write(environment_variables)
+        load_dotenv(find_dotenv(), override=True)
+        fetch_database_ip(internal=True)
+
+    # Start the Server
     port = int(os.environ.get("PORT", 8080))  # Default to 8080 for local development, use PORT env var in Cloud Run
     logger.info(f"Starting server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

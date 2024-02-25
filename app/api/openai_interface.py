@@ -1,6 +1,3 @@
-import os
-
-# import logging
 from typing import List
 from pydantic import BaseModel
 from openai import OpenAI
@@ -12,16 +9,26 @@ class Message(BaseModel):
     role: str
 
 
-def get_openai_stream(messages: List[Message]):
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+class Config(BaseModel):
+    k: int
+    max_context_length: int
+    model: str
+    client: OpenAI
+
+
+def get_openai_stream(messages: List[Message], config: Config):
+    # Extract the configuration parameters
+    client = config.client
+    k = config.k
+    max_context_length = config.max_context_length
+    model = config.model
+
     # Retrieve the context relevant for the latest message and create the new message
-    latest_message = messages[-1].content
-    context = get_topk_context_chunks(latest_message, k=10)
-    enriched_user_message = add_context_to_message(latest_message, context)
-    enriched_messages = messages[:-1] + [{"content": enriched_user_message, "role": "user"}]
-    openai_stream = client.chat.completions.create(
-        model=os.getenv("GPT_MODEL"), messages=enriched_messages, temperature=0, stream=True
-    )
+    context = get_topk_context_chunks(messages[-1].content, k=k, max_context_length=max_context_length)
+    enriched_messages = add_context_to_messages(messages, context)
+
+    # Get response from OpenAI
+    openai_stream = client.chat.completions.create(model=model, messages=enriched_messages, temperature=0, stream=True)
     for chunk in openai_stream:
         yield process_chunk(chunk)
 
@@ -33,8 +40,13 @@ def process_chunk(chunk: bytes) -> bytes:
         return "\n"
 
 
-def add_context_to_message(message, context):
-    return (
-        f"{message} \n Here is some relevant context extracted from the law: {context} \n "
-        f"To repeat, based on the information above, answer the question: {message}"
+def add_context_to_messages(messages, context):
+    latest_message = messages[-1].content
+    enriched_user_message = (
+        f"Question to answer: {latest_message}\n"
+        f"{context}\n"
+        f"To repeat, based on the information above, answer the question: {latest_message}\n"
+        f"Answer: "
     )
+    enriched_messages = messages[:-1] + [{"content": enriched_user_message, "role": "user"}]
+    return enriched_messages
