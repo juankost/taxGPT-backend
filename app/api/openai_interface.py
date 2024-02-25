@@ -45,8 +45,9 @@ def add_context_to_messages(messages, context):
     enriched_user_message = (
         f"Question to answer: {latest_message}\n"
         f"{context}\n"
-        f"To repeat, based on the information above, answer the question: {latest_message}\n"
-        f"Answer: "
+        f"To repeat, based on the information above, answer the question, and provide the sources used: {latest_message}\n"  # noqa: E501
+        f"Answer: ",
+        "Sources used: ",
     )
     enriched_messages = messages[:-1] + [{"content": enriched_user_message, "role": "user"}]
     return enriched_messages
