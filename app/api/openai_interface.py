@@ -37,13 +37,6 @@ def get_openai_stream(messages: List[Message], config: Config):
     yield "data: [DONE]\n\n"  # Properly formatted SSE message for stream end if needed
 
 
-# def process_chunk(chunk: bytes) -> str:
-#     content = chunk.choices[0].delta.content if chunk.choices[0].delta.content else "\n"
-#     if content.endswith("\n"):
-#         content = content + " "  # this is to prevent stripping the last newline character from event data
-#     return f"data: {content}\n\n"
-
-
 def process_chunk(chunk: bytes) -> str:
     content = chunk.choices[0].delta.content if chunk.choices[0].delta.content else ""
     # Split the content into lines and prefix each with 'data: '
