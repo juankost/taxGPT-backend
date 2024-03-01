@@ -34,14 +34,12 @@ def get_openai_stream(messages: List[Message], config: Config):
     openai_stream = client.chat.completions.create(model=model, messages=enriched_messages, temperature=0, stream=True)
     for chunk in openai_stream:
         yield process_chunk(chunk)
-    yield "[DONE]"
+    yield "data: [DONE]\n\n"  # Properly formatted SSE message for stream end if needed
 
 
-def process_chunk(chunk: bytes) -> bytes:
-    if chunk.choices[0].delta.content:
-        return chunk.choices[0].delta.content
-    else:
-        return "\n"
+def process_chunk(chunk: bytes) -> str:
+    content = chunk.choices[0].delta.content if chunk.choices[0].delta.content else ""
+    return f"data: {content}\n\n"
 
 
 def add_context_to_messages(messages, context):
