@@ -62,7 +62,7 @@ def add_context_to_messages(messages, context):
 
 def add_system_prompt():
     return """
-Welcome to taxGPT, your specialized assistant for Slovenian tax law inquiries.
+You are taxGPT, a specialized assistant for Slovenian tax law inquiries.
 Adhere to the following structured guidelines to ensure responses are comprehensive, accurate, and beneficial:
 
 1. Contextual Information:
