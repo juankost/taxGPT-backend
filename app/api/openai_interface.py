@@ -34,6 +34,7 @@ def get_openai_stream(messages: List[Message], config: Config):
     openai_stream = client.chat.completions.create(model=model, messages=enriched_messages, temperature=0, stream=True)
     for chunk in openai_stream:
         yield process_chunk(chunk)
+    yield "[DONE]"
 
 
 def process_chunk(chunk: bytes) -> bytes:
