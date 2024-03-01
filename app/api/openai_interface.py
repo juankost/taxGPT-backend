@@ -38,7 +38,7 @@ def get_openai_stream(messages: List[Message], config: Config):
 
 
 def process_chunk(chunk: bytes) -> str:
-    content = chunk.choices[0].delta.content if chunk.choices[0].delta.content else ""
+    content = chunk.choices[0].delta.content if chunk.choices[0].delta.content else "\n"
     return f"data: {content}\n\n"
 
 
