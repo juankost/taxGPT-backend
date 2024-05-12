@@ -1,9 +1,12 @@
+import logging
 from typing import List
 from pydantic import BaseModel
 from openai import OpenAI
 from app.api.database_interface import get_topk_context_chunks
 from typing import Optional
 from langchain_community.vectorstores.faiss import FAISS
+
+logger = logging.getLogger(__name__)
 
 
 class Message(BaseModel):
@@ -32,6 +35,7 @@ def get_openai_stream(messages: List[Message], config: Config):
     embedding_model = config.embedding_model
     db = config.db
 
+    print("Vector database type: ", type(db))
     # Retrieve the context relevant for the latest message and create the new message
     context = get_topk_context_chunks(
         messages[-1].content,
@@ -46,6 +50,7 @@ def get_openai_stream(messages: List[Message], config: Config):
     enriched_messages = [Message(content=add_system_prompt(), role="system")] + enriched_messages
 
     # Get response from OpenAI
+    logger.info("Sending API request to OpenAI")
     openai_stream = client.chat.completions.create(
         model=model, messages=enriched_messages, temperature=0, stream=True
     )

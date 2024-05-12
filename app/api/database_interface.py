@@ -4,6 +4,8 @@ import logging
 import os
 from urllib.parse import urlunparse
 
+logger = logging.getLogger(__name__)
+
 
 def get_topk_context_chunks(
     query, k=10, max_context_length=4096, embedding_model="text-embedding-3-small", db=None
@@ -13,8 +15,10 @@ def get_topk_context_chunks(
     otherwise it calls the VM with the database
     """
     if db is not None:
+        logger.info("Returning locally the context")
         return get_local_context(query, db, k, max_context_length, embedding_model)
     else:
+        logger.info("Returning remotely the context")
         db_scheme = "http"  # Consider "https" for secure connections
         db_host = os.getenv("DATABASE_IP_ADDRESS")
         db_port = os.getenv("DATABASE_PORT")
@@ -51,7 +55,7 @@ def get_local_context(
     context = "Here is some relevant context extracted from the law: \n\n"
     for article, source in zip(law_articles_text, law_articles_sources):
         article_context = f"""
-        Source: {source["filename"]}\n
+        Source: {source["details_href_name"]}\n
         Link: {source["raw_filepath"]}\n
         Text: {article} \n
         """  # noqa: E501

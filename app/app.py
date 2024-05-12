@@ -13,7 +13,7 @@ from app.api.openai_interface import get_openai_stream, Config, Message, OpenAI
 from app.utils import fetch_database_ip
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
-from app.utils import check_folder_exists, download_folder
+from app.storage.storage_bucket import check_folder_exists, download_folder
 
 # Configure logging
 logging.basicConfig(
@@ -92,8 +92,10 @@ if __name__ == "__main__":
     logger.info("Loading the vector database")
     VECTOR_DB_PATH = os.getenv("VECTOR_DB_PATH")
     STORAGE_BUCKET_NAME = os.getenv("STORAGE_BUCKET_NAME")
-    if STORAGE_BUCKET_NAME is not None and check_folder_exists(
-        STORAGE_BUCKET_NAME, "vector_database", local=args.local
+    if (
+        STORAGE_BUCKET_NAME is not None
+        and check_folder_exists(STORAGE_BUCKET_NAME, "vector_database", local=args.local)
+        and not os.path.exists(os.path.join(VECTOR_DB_PATH, "index.faiss"))
     ):
         os.makedirs(VECTOR_DB_PATH, exist_ok=True)
         download_folder(STORAGE_BUCKET_NAME, "vector_database", VECTOR_DB_PATH, local=args.local)
@@ -115,6 +117,8 @@ if __name__ == "__main__":
         max_context_length=int(os.environ.get("MAX_CONTEXT_LENGTH")),
         model=os.environ.get("GPT_MODEL"),
         client=OpenAI(api_key=os.environ.get("OPENAI_API_KEY")),
+        embedding_model=embedding_model,
+        db=None,
     )
 
     config_with_local_context = Config(
@@ -122,6 +126,7 @@ if __name__ == "__main__":
         max_context_length=int(os.environ.get("MAX_CONTEXT_LENGTH")),
         model=os.environ.get("GPT_MODEL"),
         client=OpenAI(api_key=os.environ.get("OPENAI_API_KEY")),
+        embedding_model=embedding_model,
         db=db,
     )
 
