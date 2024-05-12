@@ -76,6 +76,7 @@ if __name__ == "__main__":
     args = args.parse_args()
 
     # Load environment variables
+    logger.info("Loading the environment variables")
     if args.local:
         load_dotenv(".env.local", override=True)
         fetch_database_ip(internal=False)
@@ -88,6 +89,7 @@ if __name__ == "__main__":
         fetch_database_ip(internal=True)
 
     # Load the Vector DB if we have access to
+    logger.info("Loading the vector database")
     VECTOR_DB_PATH = os.getenv("VECTOR_DB_PATH")
     STORAGE_BUCKET_NAME = os.getenv("STORAGE_BUCKET_NAME")
     if STORAGE_BUCKET_NAME is not None and check_folder_exists(
@@ -97,6 +99,7 @@ if __name__ == "__main__":
         download_folder(STORAGE_BUCKET_NAME, "vector_database", VECTOR_DB_PATH, local=args.local)
 
     # Initialize the vector store
+    logger.info("Initializing the vector store")
     openai.api_key = os.getenv("OPENAI_API_KEY")
     embedding_model = os.environ["EMBEDDING_MODEL"]
     embeddings = OpenAIEmbeddings(model=embedding_model)

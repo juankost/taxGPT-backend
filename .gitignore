@@ -7,3 +7,4 @@ taxgpt_backend.egg-info
 /.env
 .env
 .env.local
+data
