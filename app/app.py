@@ -2,6 +2,7 @@ import os
 import logging
 import argparse
 import uvicorn
+import openai
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,22 +11,18 @@ from typing import List, Optional
 from dotenv import find_dotenv, load_dotenv
 from app.api.openai_interface import get_openai_stream, Config, Message, OpenAI
 from app.utils import fetch_database_ip
+from langchain_openai import OpenAIEmbeddings
+from langchain_community.vectorstores.faiss import FAISS
+from app.utils import check_folder_exists, download_folder
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
-# TODO: Only allow access from frontend domain, or from local development (how to do this)
-app = FastAPI()
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # For development only; specify your frontend's origin in production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-
+# Define the interfaces for the API calls
 class UserQuery(BaseModel):
     query: str
     user_id: str
@@ -38,6 +35,17 @@ class ChatRequest(BaseModel):
     previewToken: Optional[str] = None
 
 
+# TODO: Only allow access from frontend domain, or from local development (how to do this)
+app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # For development only; specify your frontend's origin in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 @app.get("/")
 async def root():
     logger.info("Root endpoint called")
@@ -45,9 +53,21 @@ async def root():
 
 
 @app.post("/api/chat_with_context")
-async def stream(user_query: ChatRequest):
-    logger.info("Chat with context endpoint called")
-    return StreamingResponse(get_openai_stream(user_query.messages, config), media_type="text/event-stream")
+async def stream_with_remote_context(user_query: ChatRequest):
+    logger.info("Chat with remote context endpoint called")
+    return StreamingResponse(
+        get_openai_stream(user_query.messages, config_with_remote_context),
+        media_type="text/event-stream",
+    )
+
+
+@app.post("/api/chat_with_local_context")
+async def stream_with_local_context(user_query: ChatRequest):
+    logger.info("Chat with local context endpoint called")
+    return StreamingResponse(
+        get_openai_stream(user_query.messages, config_with_local_context),
+        media_type="text/event-stream",
+    )
 
 
 if __name__ == "__main__":
@@ -67,15 +87,44 @@ if __name__ == "__main__":
         load_dotenv(find_dotenv(), override=True)
         fetch_database_ip(internal=True)
 
+    # Load the Vector DB if we have access to
+    VECTOR_DB_PATH = os.getenv("VECTOR_DB_PATH")
+    STORAGE_BUCKET_NAME = os.getenv("STORAGE_BUCKET_NAME")
+    if STORAGE_BUCKET_NAME is not None and check_folder_exists(
+        STORAGE_BUCKET_NAME, "vector_database", local=args.local
+    ):
+        os.makedirs(VECTOR_DB_PATH, exist_ok=True)
+        download_folder(STORAGE_BUCKET_NAME, "vector_database", VECTOR_DB_PATH, local=args.local)
+
+    # Initialize the vector store
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    embedding_model = os.environ["EMBEDDING_MODEL"]
+    embeddings = OpenAIEmbeddings(model=embedding_model)
+    try:
+        db = FAISS.load_local(VECTOR_DB_PATH, embeddings, allow_dangerous_deserialization=True)
+    except Exception as e:
+        print("Error loading the database", e)
+        db = None
+
     # Initialize the config for the OpenAI interface
-    config = Config(
+    config_with_remote_context = Config(
         k=int(os.environ.get("NUM_CONTEXT_CHUNKS")),
         max_context_length=int(os.environ.get("MAX_CONTEXT_LENGTH")),
         model=os.environ.get("GPT_MODEL"),
         client=OpenAI(api_key=os.environ.get("OPENAI_API_KEY")),
     )
 
+    config_with_local_context = Config(
+        k=int(os.environ.get("NUM_CONTEXT_CHUNKS")),
+        max_context_length=int(os.environ.get("MAX_CONTEXT_LENGTH")),
+        model=os.environ.get("GPT_MODEL"),
+        client=OpenAI(api_key=os.environ.get("OPENAI_API_KEY")),
+        db=db,
+    )
+
     # Start the Server
-    port = int(os.environ.get("PORT", 8080))  # Default to 8080 for local development, use PORT env var in Cloud Run
+    port = int(
+        os.environ.get("PORT", 8080)
+    )  # Default to 8080 for local development, use PORT env var in Cloud Run
     logger.info(f"Starting server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

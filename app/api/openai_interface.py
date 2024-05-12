@@ -2,6 +2,8 @@ from typing import List
 from pydantic import BaseModel
 from openai import OpenAI
 from app.api.database_interface import get_topk_context_chunks
+from typing import Optional
+from langchain_community.vectorstores.faiss import FAISS
 
 
 class Message(BaseModel):
@@ -14,6 +16,8 @@ class Config(BaseModel):
     max_context_length: int
     model: str
     client: OpenAI
+    embedding_model: str
+    db: Optional[FAISS]
 
     class Config:
         arbitrary_types_allowed = True
@@ -25,16 +29,26 @@ def get_openai_stream(messages: List[Message], config: Config):
     k = config.k
     max_context_length = config.max_context_length
     model = config.model
+    embedding_model = config.embedding_model
+    db = config.db
 
     # Retrieve the context relevant for the latest message and create the new message
-    context = get_topk_context_chunks(messages[-1].content, k=k, max_context_length=max_context_length)
+    context = get_topk_context_chunks(
+        messages[-1].content,
+        k=k,
+        max_context_length=max_context_length,
+        embedding_model=embedding_model,
+        db=db,
+    )
     enriched_messages = add_context_to_messages(messages, context)
 
     # Prepend the messages with a system prompt
     enriched_messages = [Message(content=add_system_prompt(), role="system")] + enriched_messages
 
     # Get response from OpenAI
-    openai_stream = client.chat.completions.create(model=model, messages=enriched_messages, temperature=0, stream=True)
+    openai_stream = client.chat.completions.create(
+        model=model, messages=enriched_messages, temperature=0, stream=True
+    )
     for chunk in openai_stream:
         yield process_chunk(chunk)
     yield "data: [DONE]\n\n"  # Properly formatted SSE message for stream end if needed
