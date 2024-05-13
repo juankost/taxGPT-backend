@@ -1,8 +1,5 @@
-import requests
 import tiktoken
 import logging
-import os
-from urllib.parse import urlunparse
 
 logger = logging.getLogger(__name__)
 
@@ -14,35 +11,12 @@ def get_topk_context_chunks(
     If it has access to the Vector DB locally, it tries to retrieve directly from DB,
     otherwise it calls the VM with the database
     """
-    if db is not None:
-        logger.info("Returning locally the context")
-        return get_local_context(query, db, k, max_context_length, embedding_model)
-    else:
-        logger.info("Returning remotely the context")
-        db_scheme = "http"  # Consider "https" for secure connections
-        db_host = os.getenv("DATABASE_IP_ADDRESS")
-        db_port = os.getenv("DATABASE_PORT")
-        db_netloc = f"{db_host}:{db_port}"
-        db_api_endpoint = urlunparse((db_scheme, db_netloc, "/get_context", "", "", ""))
-        response = requests.post(
-            db_api_endpoint,
-            json={
-                "query": query,
-                "k": k,
-                "max_context_length": max_context_length,
-                "embedding_model": embedding_model,
-            },
-        )
-        if response.status_code == 200:
-            context = response.json().get("context")
-            return context
-        else:
-            logging.error("Error in response: ")
-            return "Error in retrieving context from the database"
+    logger.info("Returning locally the context")
+    return get_local_context(query, k, max_context_length, embedding_model, db)
 
 
 def get_local_context(
-    query, db, k=10, max_context_len=4096, embedding_model="text-embedding-3-small"
+    query, k=10, max_context_len=4096, embedding_model="text-embedding-3-small", db=None
 ):
     # Get the top K results
     enc = tiktoken.encoding_for_model(embedding_model)

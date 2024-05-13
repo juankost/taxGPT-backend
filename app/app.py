@@ -39,7 +39,7 @@ class ChatRequest(BaseModel):
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development only; specify your frontend's origin in production
+    allow_origins=["*"],  # §For development only; specify your frontend's origin in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,15 +50,6 @@ app.add_middleware(
 async def root():
     logger.info("Root endpoint called")
     return {"message": "Hello World"}
-
-
-@app.post("/api/chat_with_context")
-async def stream_with_remote_context(user_query: ChatRequest):
-    logger.info("Chat with remote context endpoint called")
-    return StreamingResponse(
-        get_openai_stream(user_query.messages, config_with_remote_context),
-        media_type="text/event-stream",
-    )
 
 
 @app.post("/api/chat_with_local_context")

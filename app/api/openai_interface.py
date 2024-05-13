@@ -3,7 +3,6 @@ from typing import List
 from pydantic import BaseModel
 from openai import OpenAI
 from app.api.database_interface import get_topk_context_chunks
-from typing import Optional
 from langchain_community.vectorstores.faiss import FAISS
 
 logger = logging.getLogger(__name__)
@@ -20,7 +19,7 @@ class Config(BaseModel):
     model: str
     client: OpenAI
     embedding_model: str
-    db: Optional[FAISS]
+    db: FAISS
 
     class Config:
         arbitrary_types_allowed = True
