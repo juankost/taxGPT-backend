@@ -103,15 +103,6 @@ if __name__ == "__main__":
         db = None
 
     # Initialize the config for the OpenAI interface
-    config_with_remote_context = Config(
-        k=int(os.environ.get("NUM_CONTEXT_CHUNKS")),
-        max_context_length=int(os.environ.get("MAX_CONTEXT_LENGTH")),
-        model=os.environ.get("GPT_MODEL"),
-        client=OpenAI(api_key=os.environ.get("OPENAI_API_KEY")),
-        embedding_model=embedding_model,
-        db=None,
-    )
-
     config_with_local_context = Config(
         k=int(os.environ.get("NUM_CONTEXT_CHUNKS")),
         max_context_length=int(os.environ.get("MAX_CONTEXT_LENGTH")),
