@@ -24,4 +24,3 @@ steps:
   ]
   id: Deploying Cloud Run service
 timeout: '1600s'
-# '--set-env-vars=DATABASE_INSTANCE_NAME=taxgpt-database,PROJECT_ID=$PROJECT_ID,DATABASE_INSTANCE_ZONE=us-central1-f,DATABASE_PORT=8080,GPT_MODEL=gpt-4',
