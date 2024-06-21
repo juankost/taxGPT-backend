@@ -9,7 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from dotenv import find_dotenv, load_dotenv
-from app.api.openai_interface import get_openai_stream, Config, Message, OpenAI
+from app.api.openai_interface import (
+    get_openai_stream,
+    Config,
+    Message,
+    OpenAI,
+    process_question_and_stream_response,
+)
 from app.utils import fetch_database_ip
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
@@ -52,11 +58,20 @@ async def root():
     return {"message": "Hello World"}
 
 
-@app.post("/api/chat_with_local_context")
+@app.post("/api/chat_with_context")
 async def stream_with_local_context(user_query: ChatRequest):
     logger.info("Chat with local context endpoint called")
     return StreamingResponse(
-        get_openai_stream(user_query.messages, config_with_local_context),
+        get_openai_stream(user_query.messages, config),
+        media_type="text/event-stream",
+    )
+
+
+@app.post("/api/chat")
+async def chat(user_query: ChatRequest):
+    logger.info("Chat endpoint called")
+    return StreamingResponse(
+        process_question_and_stream_response(user_query.messages, config),
         media_type="text/event-stream",
     )
 
@@ -103,13 +118,15 @@ if __name__ == "__main__":
         db = None
 
     # Initialize the config for the OpenAI interface
-    config_with_local_context = Config(
-        k=int(os.environ.get("NUM_CONTEXT_CHUNKS")),
-        max_context_length=int(os.environ.get("MAX_CONTEXT_LENGTH")),
+    config = Config(
+        retrieve_n=int(os.environ.get("NUM_RETRIEVED_CHUNKS")),
+        rerank_max_n=int(os.environ.get("NUM_RERANKED_CHUNKS")),
+        max_context_len=int(os.environ.get("MAX_CONTEXT_LENGTH")),
         model=os.environ.get("GPT_MODEL"),
         client=OpenAI(api_key=os.environ.get("OPENAI_API_KEY")),
         embedding_model=embedding_model,
         db=db,
+        use_reformulated_question=True,
     )
 
     # Start the Server
