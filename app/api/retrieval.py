@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 # Completely ballparked
 MIN_EMBEDDING_SIMILARITY_SCORE = 0.5
-MIN_RERANKING_SIMILARITY_SCORE = 0.5
+MIN_RERANKING_SIMILARITY_SCORE = 0.25
 
 
 def get_law_context_chunks(
