@@ -17,6 +17,6 @@ google-cloud-storage
 google-auth
 tiktoken>=0.6.0  # otherwise the text-embedding-3-large model does not get recognized
 faiss-cpu
-
+cohere
 
 
