@@ -92,6 +92,7 @@ def get_openai_stream(messages: List[Message], config: Config):
 ############################################################################################
 def reformulate_question(logged_messages: List[Message], config: Config):
     conversation_history = [message.model_dump() for message in logged_messages]
+    # conversation_history = [message.dict() for message in logged_messages]
     conversation_history = [f"{msg['role']}: {msg['content']} \n" for msg in conversation_history]
     conversation_history_string = "".join(conversation_history)
     prompt = RAG_PROMPT.replace("{conversation_history}", conversation_history_string)
