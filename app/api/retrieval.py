@@ -6,7 +6,7 @@ import os
 logger = logging.getLogger(__name__)
 
 
-# Completely ballparked
+# TODO: Completely ballparked
 MIN_EMBEDDING_SIMILARITY_SCORE = 0.5
 MIN_RERANKING_SIMILARITY_SCORE = 0.25
 
@@ -22,7 +22,6 @@ def get_law_context_chunks(
     # First stage semantic retrieval
     enc = tiktoken.encoding_for_model(embedding_model)
     docs = db.similarity_search_with_score(query, k=retrieve_n)
-    logging.info(f"Similarity scores of initial retrieval: {[score for _, score in docs]}")
     docs = [doc for doc, score in docs if float(score) > MIN_EMBEDDING_SIMILARITY_SCORE]
     law_articles_text = [doc.page_content for doc in docs]
     law_articles_sources = [doc.metadata for doc in docs]

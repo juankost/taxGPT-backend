@@ -16,7 +16,8 @@ from app.api.openai_interface import (
     OpenAI,
     process_question_and_stream_response,
 )
-from app.utils import fetch_database_ip
+
+# from app.utils import fetch_database_ip
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores.faiss import FAISS
 from app.storage.storage_bucket import check_folder_exists, download_folder
@@ -45,7 +46,7 @@ class ChatRequest(BaseModel):
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # §For development only; specify your frontend's origin in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -81,18 +82,17 @@ if __name__ == "__main__":
     args.add_argument("--local", action="store_true", help="Run the server locally")
     args = args.parse_args()
 
-    # Load environment variables
     logger.info("Loading the environment variables")
     if args.local:
         load_dotenv(".env.local", override=True)
-        fetch_database_ip(internal=False)
+        # fetch_database_ip(internal=False)
     else:
         # All the environment variables are passed through one secret value --> Need to extract them
         environment_variables = os.environ.get("ENVIRONMENT_VARIABLES")
         with open(".env", "w") as f:
             f.write(environment_variables)
         load_dotenv(find_dotenv(), override=True)
-        fetch_database_ip(internal=True)
+        # fetch_database_ip(internal=True)
 
     # Load the Vector DB if we have access to
     logger.info("Loading the vector database")

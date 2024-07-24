@@ -85,19 +85,17 @@ def get_openai_stream(messages: List[Message], config: Config):
 
 ############################################################################################
 # NEW VERSION OF THE CHAT PROCESSING
-# 1. Reformulate question (interpret what the user wants)
+# 1. Reformulate question based on all previous chat history (interpret what the user wants now)
 # 2. Search for relevant context
 # 3. Send the system prompt, reformulated question, and the context to openAI
 # 4. Stream back the response
 ############################################################################################
 def reformulate_question(logged_messages: List[Message], config: Config):
     conversation_history = [message.model_dump() for message in logged_messages]
-    # conversation_history = [message.dict() for message in logged_messages]
     conversation_history = [f"{msg['role']}: {msg['content']} \n" for msg in conversation_history]
     conversation_history_string = "".join(conversation_history)
     prompt = RAG_PROMPT.replace("{conversation_history}", conversation_history_string)
     message = [Message(role="user", content=prompt)]
-    # logging.info(f"Reformulating question: {prompt}")
     completion = config.client.chat.completions.create(
         model="gpt-4o",
         messages=message,
@@ -106,8 +104,6 @@ def reformulate_question(logged_messages: List[Message], config: Config):
         response_format={"type": "json_object"},
     )
     response_json = json.loads(completion.choices[0].message.content)
-    # logging.info(f"LLM reply to question reformulation: {response_json}")
-
     return response_json["reformulated_question"]
 
 
@@ -239,20 +235,8 @@ def process_question_and_stream_response(messages: List[Message], config: Config
     logger.info("Finished response")
 
 
+############################################################################################
+
+
 if __name__ == "__main__":
     pass
-
-
-############################################################################################
-# What am I trying to accomplish? Being able to have a continuous conversation with the chatbot
-# BACKEND
-# 1. Reformulate question (interpret what the user wants)
-# 2. Search for relevant context
-# 3. Send the system prompt, reformulated question, and the context to openAI
-# 4. Stream back the response
-
-# FRONTEND:
-# 1. Show loading sign while waiting for reformulated questions
-# 2. Show the reformulated question
-# 3. Receive the relevant references, and show them
-# 4. Show the streaming response
